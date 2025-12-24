@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Generator Nota Otomatis</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 20px;
+    }
+    .container {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .form-box {
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      width: 300px;
+    }
+    .form-box input {
+      width: 100%;
+      margin-bottom: 10px;
+      padding: 8px;
+    }
+    button {
+      padding: 10px;
+      width: 100%;
+      cursor: pointer;
+    }
+    canvas {
+      background: #fff;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Generator Nota Otomatis</h2>
+
+<div class="container">
+  <div class="form-box">
+    <input type="text" id="notanumber" placeholder="No. Nota" />
+    <input type="text" id="tuan" placeholder="Tuan" />
+    <input type="text" id="toko" placeholder="Toko" />
+    <input type="text" id="tanggal" placeholder="Tanggal" />
+    <input type="text" id="garansi" placeholder="Garansi" />
+
+    <hr />
+
+    <input type="text" id="namabarang" placeholder="Nama Barang" />
+    <input type="number" id="qty" placeholder="Banyaknya" />
+    <input type="text" id="satuan" placeholder="Satuan" />
+    <input type="number" id="subtotal" placeholder="Harga" />
+    <button onclick="tambahBarang()">Tambah Barang</button>
+
+    <hr />
+    <button onclick="generateNota()">Generate Nota</button>
+    <button onclick="downloadNota()">Download Nota (PNG)</button>
+    <button onclick="shareNota()">Bagikan ke Whatsapp/Telegram</button>
+  </div>
+
+  <canvas id="notaCanvas" width="400" height="600"></canvas>
+</div>
+
+<script>
+  const canvas = document.getElementById("notaCanvas");
+  const ctx = canvas.getContext("2d");
+  const notaImg = new Image();
+  notaImg.src = "nota.png";
+
+  let daftarBarang = [];
+
+  notaImg.onload = () => {
+    ctx.drawImage(notaImg, 0, 0, canvas.width, canvas.height);
+  };
+
+  function tambahBarang() {
+    const nama = document.getElementById("namabarang").value;
+    const qty = Number(document.getElementById("qty").value);
+    const subtotal = Number(document.getElementById("subtotal").value);
+
+    if (!nama || subtotal <= 0) {
+      alert("Data barang belum lengkap");
+      return;
+    }
+
+    daftarBarang.push({ nama, qty, subtotal });
+
+    document.getElementById("namabarang").value = "";
+    document.getElementById("qty").value = "";
+    document.getElementById("subtotal").value = "";
+
+    alert("Barang berhasil ditambahkan");
+  }
+
+  function generateNota() {
+    const num = document.getElementById("notanumber").value;
+    const tuan = document.getElementById("tuan").value;
+    const toko = document.getElementById("toko").value;
+    const tgl = document.getElementById("tanggal").value;
+    const grs = document.getElementById("garansi").value;
+    const stn = document.getElementById("satuan").value;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(notaImg, 0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#000";
+    ctx.font = "14px Arial";
+
+    // Header nota (sesuai koordinat kamu)
+    ctx.fillText(num, 115, 165);
+    ctx.fillText(tuan, 115, 185);
+    ctx.fillText(toko, 115, 205);
+    ctx.fillText(tgl, 283, 185);
+    ctx.fillText(stn, 75, 255);
+
+    let startY = 255; // baris barang pertama
+    let jarak = 22;   // jarak antar baris
+    let grandTotal = 0;
+
+    daftarBarang.forEach((item, index) => {
+      const y = startY + index * jarak;
+      grandTotal += item.subtotal;
+
+      ctx.fillText(item.qty, 60, y);
+      ctx.fillText(item.nama, 125, y);
+      ctx.fillText("Rp " + item.subtotal.toLocaleString(), 283, y);
+    });
+
+if (daftarBarang.length >= 1) {
+ctx.font = "16px Arial";
+drawMultilineText(
+ctx, 
+grs, 
+125, 
+startY + daftarBarang.length * jarak, 
+158, 
+22);
+}
+
+    // TOTAL AKHIR (hanya muncul kalau lebih dari 1 barang)
+      ctx.font = "16px Arial";
+      ctx.fillText("Rp " + grandTotal.toLocaleString(), 283, 409);
+  }
+
+function downloadNota() {
+const link = document.createElement("a")
+link.download = "nota.png";
+link.href = canvas.toDataURL("image/png");
+link.click();
+}
+
+async function shareNota() {
+const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png"));
+const file = new File([blob], "nota.png", { type: "image/png" });
+
+
+if (navigator.canShare && navigator.canShare({ files: [file] })) {
+navigator.share({
+files: [file],
+title: "Nota Pembelian",
+text: "Berikut nota pembelian"
+});
+} else {
+alert("Browser tidak mendukung share langsung. Silakan download lalu kirim manual via WhatsApp / Telegram.");
+}
+}
+
+function drawMultilineText(ctx, text, x, y, maxWidth, lineHeight) {
+  const lines = text.split("\n");
+  let currentY = y;
+
+  lines.forEach(line => {
+    let words = line.split(" ");
+    let currentLine = "";
+
+    words.forEach(word => {
+      const testLine = currentLine + word + " ";
+      const metrics = ctx.measureText(testLine);
+
+      if (metrics.width > maxWidth && currentLine !== "") {
+        ctx.fillText(currentLine, x, currentY);
+        currentLine = word + " ";
+        currentY += lineHeight;
+      } else {
+        currentLine = testLine;
+      }
+    });
+
+    ctx.fillText(currentLine, x, currentY);
+    currentY += lineHeight;
+  });
+
+  return currentY;
+}
+
+</script>
+
+</body>
+</html>
